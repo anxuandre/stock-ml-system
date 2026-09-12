@@ -102,7 +102,7 @@ Example:
 Run:
 
 ```
-python src/train.py
+python -m src.train
 ```
 
 This will:
@@ -113,6 +113,11 @@ This will:
 * Evaluate performance
 * Save the best model
 * Write metadata to best_model.json
+
+Training uses a chronological split at `TRAIN_SPLIT_DATE`. Rows whose five-session
+target reaches the test period are excluded from training, so training labels
+cannot use held-out prices. Feature warmup and rows without complete future
+returns are also excluded. Both partitions must contain usable rows.
 
 ---
 
@@ -222,6 +227,7 @@ Current tests cover:
 * Label generation
 * Prediction input handling
 * Ticker-based feature creation
+* Training split isolation and empty-partition validation
 
 ---
 

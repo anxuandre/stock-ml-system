@@ -5,7 +5,7 @@ import joblib
 from src.data_loader import download_data
 from src.features import add_features
 from src.labels import add_labels
-from src.config import TRAIN_SPLIT_DATE
+from src.config import LABEL_HORIZON, TRAIN_SPLIT_DATE
 from src.train_lr import train_and_evaluate_lr
 from src.train_rf import train_and_evaluate_rf
 
@@ -22,10 +22,22 @@ def prepare_dataset():
     df = download_data()
     df = add_features(df)
     df = add_labels(df)
+    # Track the observation used by each target before dropping incomplete rows.
+    df["label_end_date"] = df["Date"].shift(-LABEL_HORIZON)
     df = df.dropna().copy()
 
-    train_df = df[df["Date"] < TRAIN_SPLIT_DATE].copy()
+    train_df = df[
+        (df["Date"] < TRAIN_SPLIT_DATE)
+        & (df["label_end_date"] < TRAIN_SPLIT_DATE)
+    ].copy()
     test_df = df[df["Date"] >= TRAIN_SPLIT_DATE].copy()
+
+    if train_df.empty or test_df.empty:
+        raise ValueError(
+            "Training and test partitions must both contain complete rows after "
+            "feature warmup and label-horizon purging. Check the data date range "
+            "and TRAIN_SPLIT_DATE."
+        )
 
     X_train = train_df[FEATURE_COLUMNS]
     y_train = train_df["label"]
