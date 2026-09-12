@@ -6,13 +6,18 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, ConfigDict
 
-from src.predict import load_best_model, predict_ticker
+from src.predict import load_best_model, predict_ticker, clear_prediction_cache, normalize_ticker
 
 
 class PredictRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     ticker: str
+
+
+class BatchPredictRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    tickers: list[str]
 
 
 class PredictResponse(BaseModel):
@@ -39,6 +44,12 @@ app = FastAPI(
 
 @app.get("/health")
 def health():
+    return {"status": "ok", "model_loaded": hasattr(app.state, "artifacts")}
+
+
+@app.post("/cache/clear")
+def clear_cache():
+    clear_prediction_cache()
     return {"status": "ok"}
 
 
@@ -53,3 +64,20 @@ def predict(request: PredictRequest):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected server error: {e}")
+
+
+@app.post("/predict/batch")
+def predict_batch(request: BatchPredictRequest):
+    try:
+        tickers = list(dict.fromkeys(normalize_ticker(t) for t in request.tickers))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    if not tickers or len(tickers) > 50:
+        raise HTTPException(status_code=400, detail="Provide between 1 and 50 tickers")
+    results = []
+    for ticker in tickers:
+        try:
+            results.append(predict_ticker(ticker, app.state.artifacts))
+        except (ValueError, FileNotFoundError) as exc:
+            results.append({"ticker": ticker, "error": str(exc)})
+    return {"results": results}

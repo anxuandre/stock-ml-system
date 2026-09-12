@@ -8,6 +8,7 @@ from typing import Any
 
 import joblib
 import pandas as pd
+from functools import lru_cache
 
 from src.data_loader import download_data
 from src.features import add_features
@@ -128,7 +129,20 @@ def make_feature_frame(payload: dict, feature_columns: list[str]) -> pd.DataFram
     return pd.DataFrame([row], columns=feature_columns)
 
 
+@lru_cache(maxsize=128)
+def _cached_latest_feature_payload(ticker: str, feature_columns: tuple[str, ...], lookback_days: int):
+    return _get_latest_feature_payload(ticker, list(feature_columns), lookback_days)
+
+
 def get_latest_feature_payload(
+    ticker: str,
+    feature_columns: list[str],
+    lookback_days: int = 90,
+) -> tuple[dict, str]:
+    return _cached_latest_feature_payload(normalize_ticker(ticker), tuple(feature_columns), lookback_days)
+
+
+def _get_latest_feature_payload(
     ticker: str,
     feature_columns: list[str],
     lookback_days: int = 90,
@@ -190,3 +204,8 @@ def predict_ticker(ticker: str, artifacts: PredictionArtifacts) -> dict:
     result = predict_one(payload, artifacts, ticker=ticker)
     result["latest_data_date"] = latest_date
     return result
+
+
+def clear_prediction_cache() -> None:
+    """Clear downloaded market-data predictions, useful after a trading day closes."""
+    _cached_latest_feature_payload.cache_clear()

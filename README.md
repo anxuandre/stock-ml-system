@@ -140,7 +140,7 @@ http://localhost:8000/docs
 **GET /health**
 
 ```
-{"status": "ok"}
+{"status": "ok", "model_loaded": true}
 ```
 
 ---
@@ -177,6 +177,38 @@ Response:
   "latest_data_date": "2024-12-30 00:00:00"
 }
 ```
+
+### Batch predictions
+
+**POST /predict/batch** accepts up to 50 tickers and returns independent results. A
+problem with one ticker is returned in that ticker's `error` field without failing
+the whole request:
+
+```json
+{"tickers": ["AAPL", "MSFT", "NVDA"]}
+```
+
+Recent market downloads are cached in-process to reduce duplicate requests. Clear
+the cache after a new trading session with **POST /cache/clear**. The cache is local
+to one API process and is not a replacement for a shared production cache.
+
+## Testing
+
+Install dependencies and run:
+
+```
+python -m pip install -r requirements.txt
+python -m pytest -q
+```
+
+## Docker
+
+```
+docker compose up --build
+```
+
+The API is then available at `http://localhost:8000`, with interactive docs at
+`http://localhost:8000/docs`.
 
 ---
 

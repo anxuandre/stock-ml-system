@@ -14,9 +14,12 @@ def _flatten_yfinance_columns(df: pd.DataFrame) -> pd.DataFrame:
 def download_data(ticker=TICKER, start=START_DATE, end=END_DATE):
     import yfinance as yf
 
-    df = yf.download(ticker, start=start, end=end)
+    df = yf.download(ticker, start=start, end=end, auto_adjust=False, progress=False)
     df.reset_index(inplace=True)
     df = _flatten_yfinance_columns(df)
+    if "Date" not in df.columns or df.empty:
+        return df
+    df = df.sort_values("Date").drop_duplicates("Date").reset_index(drop=True)
     return df
 
 
