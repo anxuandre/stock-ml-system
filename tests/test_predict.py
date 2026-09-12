@@ -64,6 +64,21 @@ def test_predict_one_returns_prediction_with_probability():
     }
 
 
+def test_predict_one_uses_positive_class_metadata_for_probability():
+    class ReversedClassesModel:
+        classes_ = [1, 0]
+
+        def predict(self, X):
+            return [1]
+
+        def predict_proba(self, X):
+            return [[0.8, 0.2]]
+
+    artifacts = PredictionArtifacts(ReversedClassesModel(), "dummy", ["x"])
+
+    assert predict_one({"x": 1}, artifacts)["probability"] == pytest.approx(0.8)
+
+
 def test_normalize_ticker_strips_and_uppercases_symbol():
     assert normalize_ticker(" aapl ") == "AAPL"
 

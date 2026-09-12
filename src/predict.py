@@ -162,7 +162,14 @@ def predict_one(payload: dict, artifacts: PredictionArtifacts, ticker: str | Non
     probability = None
     if hasattr(artifacts.model, "predict_proba"):
         proba = artifacts.model.predict_proba(X)[0]
-        probability = float(proba[1])  # probability of positive class
+        classes = getattr(artifacts.model, "classes_", None)
+        if classes is not None:
+            positive = next((i for i, label in enumerate(classes) if label == 1), None)
+            probability = float(proba[positive]) if positive is not None else 0.0
+        elif len(proba) > 1:
+            # Most sklearn classifiers use [negative, positive] when classes
+            # metadata is unavailable.
+            probability = float(proba[1])
 
     result = {
         "model_name": artifacts.model_name,
